@@ -13,9 +13,9 @@ router.get('/', function(req, res, next) {
 
 ////////////////////
 // PROTECTED ZONE
-router.use(User.authMiddleware);
+// router.use();
 
-router.get('/protected', function(req, res) {
+router.get('/protected', User.authMiddleware, function(req, res) {
   console.log('req.user:', req.user);
   res.send('wooo! protected!!');
 });

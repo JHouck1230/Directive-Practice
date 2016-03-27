@@ -22,7 +22,7 @@ userSchema.statics.authMiddleware = function(req, res, next) {
   }
   // we have a valid token
 
-  User.findById(payload.userId, function(err, user) {
+  User.findById(payload.userId).select({password: 0}).exec(function(err, user) {
     if(err || !user) {
       return res.clearCookie('cadecookie').status(401).send(err);
     }
@@ -30,6 +30,18 @@ userSchema.statics.authMiddleware = function(req, res, next) {
     req.user = user; // making the user document availble to the route
     next(); // everything is good, and the request can continue
   });
+};
+
+
+userSchema.methods.generateToken = function () {
+  // `this` is the document you are calling the method on
+  var payload = {
+    userId: this._id,
+    iat: Date.now()  // issued at time
+  };
+  // generate a token
+  var token = jwt.encode(payload, JWT_SECRET);
+  return token;
 };
 
 userSchema.statics.authenticate = function(userObj, cb) {
@@ -41,14 +53,8 @@ userSchema.statics.authenticate = function(userObj, cb) {
       if(err || !isGood) {
         return cb("Authentication failed.");
       }
-
-      var payload = {
-        userId: dbUser._id,
-        iat: Date.now()  // issued at time
-      };
-      // generate a token
-      var token = jwt.encode(payload, JWT_SECRET);
-      cb(null, token);
+      dbUser.password = null;
+      cb(null, dbUser);
     });
   });
 };
@@ -61,8 +67,13 @@ userSchema.statics.register = function(userObj, cb) {
     User.create({
       username: userObj.username,
       password: hash
-    }, function(err) {
-      cb(err);
+    }, function(err, user) {
+      if(err) {
+        cb(err);
+      } else {
+        user.password = null;
+        cb(err, user);
+      }
     });
   });
 };
